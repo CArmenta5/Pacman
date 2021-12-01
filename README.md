@@ -27,6 +27,12 @@ Atributes | DataType | Description |
 row | int | Coordinate in the X axis |
 col | int | Coordinate in the Y axis | 
 
+### Game
+Atributes | DataType | Description | 
+--- | --- | --- |
+layers | int[] | Represent the tile in the Image |
+
+
 ### Config
 Atributes | DataType | Description | 
 --- | --- | --- |
@@ -50,6 +56,9 @@ Space | string | Representation for white space |
 * `*movePlayer():*` Performs the movement of the player. If the current cell has a normal dot, the score increments 1 unit. If there is a power-up, the score increments 10 units.
 * `*directionGhost() string:*` Calculates a random number and sets the corresponding direction for the next move of the ghost.
 * `*moveGhost():*` Moves the ghost to the corresponding direction. This is done in a goroutine.
+* `*init():*` Decode an image from the image file's byte slice.
+* `*Update(g *Game) error:*` Refresh the screen of the library ebitenutil
+* `*Draw(screeb *ebiten.Image):*` DDraw each tile with each DrawImage call.
 
 ### Assumptions:
 
