@@ -18,15 +18,40 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"image"
 	_ "image/png"
 	"log"
+	"math/rand"
 	"os"
+	"os/exec"
+	"strconv"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
+
+type Game struct {
+	layers []int
+}
+
+//DEFINE GAME NECESARY VARIABLES
+type sprite struct {
+	row int
+	col int
+}
+
+var player sprite
+var ghosts []*sprite
+var score int
+var numDots int
+var lives = 1
+var level []string
+var gui []string
+var input = make(chan string)
+var ghostN = 0
 
 const (
 	screenWidth  = 448
@@ -38,11 +63,74 @@ const (
 	tileXNum = 28
 )
 const (
-	vacio = 308
+	vacio    = 308
+	pacman   = 502
+	fantasma = 500
+	power    = 85
+	moneda   = 29
+	tam      = 980
 )
 
 var (
-	sliceGUI = []int{
+	winnerGUI = []int{
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 308, 308, 308, 29, 308, 29, 308, 29, 29, 308, 308, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 308, 308, 308, 29, 308, 29, 308, 29, 29, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 29, 29, 29, 29, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 29, 308, 29, 29, 308, 29, 308, 29, 308, 29, 29, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 29, 308, 29, 29, 308, 29, 308, 29, 308, 308, 29, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 308, 308, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+	}
+
+	gameoverGUI = []int{
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 29, 308, 308, 308, 29, 308, 308, 29, 308, 308, 308, 29, 308, 29, 29, 29, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 308, 29, 308, 308, 29, 29, 308, 29, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 308, 308, 308, 29, 308, 29, 308, 29, 29, 308, 29, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 29, 29, 308, 29, 308, 29, 308, 29, 308, 29, 308, 29, 308, 29, 29, 29, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 29, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 29, 308, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 29, 29, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 29, 308, 308, 29, 308, 29, 308, 29, 29, 29, 308, 29, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 29, 29, 308, 29, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 29, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 29, 308, 29, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 29, 308, 308, 29, 308, 308, 29, 308, 308, 29, 308, 308, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 29, 29, 308, 308, 308, 29, 308, 308, 29, 29, 29, 308, 29, 308, 29, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+		308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308, 308,
+	}
+	originalGUI = []int{
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
 		28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
 		56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
@@ -61,7 +149,7 @@ var (
 		420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447,
 		448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474, 475,
 		476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 503,
-		504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531,
+		504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 530,
 		532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559,
 		560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587,
 		588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615,
@@ -79,8 +167,27 @@ var (
 		924, 925, 926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947, 948, 949, 950, 951,
 		952, 953, 954, 955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967, 968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979,
 	}
+	sliceGUI   = originalGUI
 	tilesImage *ebiten.Image
 )
+
+var gameover string = "\n" +
+	"___  ___  _   _  ___    ___  _   _  ___  __   \n" +
+	"|       ||   _   ||  |_|  ||       |  |       ||  | |  ||       ||    _ |\n" +
+	"|    _||  ||  ||       ||    _|  |   _   ||  ||  ||    _||   | ||\n" +
+	"|   | _ |       ||       ||   |_   |  | |  ||       ||   |_ |   |||\n" +
+	"|   ||  ||       ||       ||    _|  |  ||  ||       ||    _||    _  |\n" +
+	"|   || ||   _   || |||| ||   |_   |       | |     | |   |_ |   |  | |\n" +
+	"|__||| ||||   |||__|  |__|  |_|  |__||_|  |_|\n"
+
+var saludo string = "\n" +
+	" ___  ___  ___         _   _  ___  __    _ \n" +
+	"|       ||   _   ||       |       |  |_|  ||   _   ||  |  | |\n" +
+	"|    _  ||  ||  ||       | __  |       ||  ||  ||   |_| |\n" +
+	"|   || ||       ||       ||_| |       ||       ||       |\n" +
+	"|    _||       ||      _|       |       ||       ||  _    |\n" +
+	"|   |    |   _   ||     |_        | ||_|| ||   _   || | |   | \n" +
+	"|_|    |_| |||__|       ||   |||_| ||||  |__| \n"
 
 func init() {
 	// Decode an image from the image file's byte slice.
@@ -88,7 +195,7 @@ func init() {
 	// If you use Go 1.16 or newer, it is strongly recommended to use //go:embed to embed the image file.
 	// See https://pkg.go.dev/embed for more details.
 
-	f, err := os.Open("pacman.png")
+	f, err := os.Open("Tiled.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,13 +204,32 @@ func init() {
 	tilesImage = ebiten.NewImageFromImage(image)
 }
 
-type Game struct {
-	layers []int
-}
-
 func (g *Game) Update() error {
 	/*Render*/
+	var contInd = 0
+	for _, char := range gui {
+		if char == " " {
+			g.layers[contInd] = vacio
+		}
+		if char == "P" {
+			g.layers[contInd] = pacman
 
+		}
+		if char == "G" {
+			g.layers[contInd] = fantasma
+
+		}
+		if char == "." {
+			g.layers[contInd] = moneda
+
+		}
+		if char == "X" {
+			g.layers[contInd] = power
+
+		}
+		contInd++
+
+	}
 	return nil
 }
 
@@ -122,21 +248,303 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screen.DrawImage(tilesImage.SubImage(image.Rect(sx, sy, sx+tileSize, sy+tileSize)).(*ebiten.Image), op)
 	}
 
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS()))
+	ebitenutil.DebugPrint(screen, "                      Puntos: "+strconv.Itoa(score)+"               Vidas: "+strconv.Itoa(lives))
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
+func readInput() (string, error) {
+	buffer := make([]byte, 100)
+
+	cnt, err := os.Stdin.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+
+	if cnt == 1 && buffer[0] == 0x1b {
+		return "ESC", nil
+	} else if cnt >= 3 {
+		if buffer[0] == 0x1b && buffer[1] == '[' {
+			switch buffer[2] {
+			case 'A':
+				return "UP", nil
+			case 'B':
+				return "DOWN", nil
+			case 'C':
+				return "RIGHT", nil
+			case 'D':
+				return "LEFT", nil
+			}
+
+		}
+	}
+	return "", nil
+}
+
+func loadLevel(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		level = append(level, line)
+	}
+
+	//Finding the start position of the player
+	for row, line := range level {
+		for col, char := range line {
+			switch char {
+			case 'P':
+				player = sprite{row, col}
+
+			case '.':
+				numDots++
+			}
+		}
+	}
+	con := 0
+	for i := 0; i < 6; i++ {
+		for j := 0; j < 3; j++ {
+			if con == ghostN {
+				break
+			}
+			ghosts = append(ghosts, &sprite{13 + i, 11 + j})
+			con++
+		}
+	}
+
+	return nil
+}
+
+func printScreen() {
+	//ClearScreen()
+	for _, line := range level {
+		for _, chr := range line {
+			switch chr {
+			case '#':
+				gui = append(gui, "#")
+				//fmt.Print("#")
+			case '.':
+				gui = append(gui, ".")
+				//fmt.Print(".")
+
+				//fmt.Print("*")
+
+			default:
+				gui = append(gui, " ")
+				//fmt.Print(" ")
+			}
+		}
+		//fmt.Println()
+
+	}
+
+	fmt.Printf("%d", player.row)
+	fmt.Printf("%d", player.col)
+	gui[(player.row)*28+player.col] = "P"
+
+	for _, ghost := range ghosts {
+		fmt.Printf("%d", ghost.row)
+		fmt.Printf("%d", ghost.col)
+		gui[(ghost.row)*28+ghost.col] = "G"
+	}
+
+	fmt.Print("New row\n")
+
+	for i := 0; i < len(gui); i++ {
+		if i%28 == 0 {
+			fmt.Print("\n")
+		}
+		fmt.Printf("%s", gui[i])
+
+	}
+	gui = nil
+}
+
+func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
+	newRow, newCol = oldRow, oldCol
+
+	switch dir {
+	case "UP":
+		newRow = newRow - 1
+		if newRow < 0 {
+			newRow = len(level) - 1
+		}
+	case "DOWN":
+		newRow = newRow + 1
+		if newRow == len(level) {
+			newRow = 0
+		}
+	case "RIGHT":
+		newCol = newCol + 1
+		if newCol == len(level[0]) {
+			newCol = 0
+		}
+	case "LEFT":
+		newCol = newCol - 1
+		if newCol < 0 {
+			newCol = len(level[0]) - 1
+		}
+	}
+	if level[newRow][newCol] == '#' {
+		newRow = oldRow
+		newCol = oldCol
+	}
+
+	return
+}
+
+func movePlayer(dir string) {
+	player.row, player.col = makeMove(player.row, player.col, dir)
+
+	removeDot := func(row, col int) {
+		level[row] = level[row][0:col] + " " + level[row][col+1:]
+	}
+
+	switch level[player.row][player.col] {
+	case '.':
+		numDots--
+		score++
+		removeDot(player.row, player.col)
+	case 'X':
+		score += 10
+		removeDot(player.row, player.col)
+	}
+	time.Sleep(150 * time.Millisecond)
+
+}
+func initSettings() {
+	cbTerm := exec.Command("stty", "cbreak", "-echo")
+	cbTerm.Stdin = os.Stdin
+
+	err := cbTerm.Run()
+	if err != nil {
+		log.Fatalln("Unable to activate cbreak mode: ", err)
+	}
+}
+
+func directionGhost() string {
+	dir := rand.Intn(4)
+	move := map[int]string{
+		0: "UP",
+		1: "DOWN",
+		2: "RIGHT",
+		3: "LEFT",
+	}
+	return move[dir]
+}
+
+func moveGhosts() {
+	for _, g := range ghosts {
+		dir := directionGhost()
+		g.row, g.col = makeMove(g.row, g.col, dir)
+
+	}
+	time.Sleep(800 * time.Millisecond)
+
+}
+
+func readConsole() (string, error) {
+	buffer := make([]byte, 100)
+
+	_, err := os.Stdin.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buffer[0]), nil
+
+}
+
+func (g *Game) round() {
+	//Game loop
+	for {
+		// obtener
+		printScreen()
+		//Process player movement
+		select { //Select is a switch but for channels
+		case inp := <-input:
+			if inp == "ESC" {
+				lives = 0
+			}
+			go movePlayer(inp)
+		default:
+
+		}
+		go moveGhosts() //Moves the gosts
+
+		for _, g := range ghosts {
+			if player == *g {
+				lives = 0
+			}
+		}
+
+		//Check for game over
+		if numDots == 0 || lives <= 0 {
+			if lives == 0 {
+				g.layers = gameoverGUI
+				g.Update()
+				break
+
+			} else {
+				g.layers = winnerGUI
+				g.Update()
+				break
+
+			}
+
+		}
+		time.Sleep(125 * time.Millisecond)
+
+	}
+
+}
 func main() {
 	g := &Game{
 		layers: sliceGUI,
 	}
+	//Loading the level from text file
+	fmt.Println(saludo)
+	time.Sleep(3000 * time.Millisecond)
 
-	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
-	ebiten.SetWindowTitle("Tiles (Ebiten Demo)")
+	fmt.Println("Please enter the amount of ghost you want (min 1, max 9)")
+	ghostq, error := readConsole()
+	if error != nil {
+		fmt.Println(error)
+	} else {
+		fmt.Println("You are going to versus: " + ghostq + " ghost(s)")
+		ghostN, _ = strconv.Atoi(ghostq)
+	}
+	err := loadLevel("level1.txt")
+	if err != nil {
+		log.Println("Failed to load the level", err)
+		return
+	}
+	//Reading input from keyboard async
+	initSettings()
+
+	go func(ch chan<- string) {
+		for {
+			input, err := readInput()
+			if err != nil {
+				log.Println("error reading input:", err)
+				ch <- "ESC"
+			}
+			ch <- input
+		}
+	}(input)
+
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Pacman")
+	go g.round()
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
+
 }
