@@ -186,33 +186,54 @@ func loadLevel(file string) error {
 	return nil
 }
 
+var gui []string
+
 func printScreen() {
-	ClearScreen()
+	//ClearScreen()
 	for _, line := range level {
 		for _, chr := range line {
 			switch chr {
 			case '#':
-				fmt.Print(blueBackground(cfg.Wall))
+				gui = append(gui, "#")
+				//fmt.Print("#")
 			case '.':
-				fmt.Print(cfg.Dot)
+				gui = append(gui, ".")
+				//fmt.Print(".")
+
+				//fmt.Print("*")
+
 			default:
-				fmt.Print(cfg.Space)
+				gui = append(gui, " ")
+				//fmt.Print(" ")
 			}
 		}
-		fmt.Println()
+		//fmt.Println()
 
 	}
-	moveCursorEmoji(player.row, player.col)
-	fmt.Print(cfg.Player)
+	fmt.Printf("%d", player.row)
+	fmt.Printf("%d", player.col)
+	gui[(player.row)*28+player.col] = "P"
 
-	for _, g := range ghosts {
-		moveCursorEmoji(g.row, g.col)
-		fmt.Print(cfg.Ghost)
+	for _, ghost := range ghosts {
+		fmt.Printf("%d", ghost.row)
+		fmt.Printf("%d", ghost.col)
+		gui[(ghost.row)*28+ghost.col] = "G"
 	}
+
+	//gui = append(gui,"P")
+	//fmt.Print("P")
 
 	moveCursorEmoji(len(level)+1, 0)
+	fmt.Print("New row\n")
 
-	fmt.Println("SCORE: ", score, "\tLives: ", lives)
+	for i := 0; i < len(gui); i++ {
+		if i%28 == 0 {
+			fmt.Print("\n")
+		}
+		fmt.Printf("%s", gui[i])
+
+	}
+	gui = nil
 }
 
 func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
@@ -220,21 +241,25 @@ func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
 
 	switch dir {
 	case "UP":
+
 		newRow = newRow - 1
 		if newRow < 0 {
 			newRow = len(level) - 1
 		}
 	case "DOWN":
+
 		newRow = newRow + 1
 		if newRow == len(level) {
 			newRow = 0
 		}
 	case "RIGHT":
+
 		newCol = newCol + 1
 		if newCol == len(level[0]) {
 			newCol = 0
 		}
 	case "LEFT":
+
 		newCol = newCol - 1
 		if newCol < 0 {
 			newCol = len(level[0]) - 1
@@ -244,6 +269,7 @@ func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
 		newRow = oldRow
 		newCol = oldCol
 	}
+
 	return
 }
 
