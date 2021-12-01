@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 )
 
@@ -249,12 +250,19 @@ func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
 
 func movePlayer(dir string) {
 	player.row, player.col = makeMove(player.row, player.col, dir)
+
+	removeDot := func(row, col int) {
+		level[row] = level[row][0:col] + " " + level[row][col+1:]
+	}
+
 	switch level[player.row][player.col] {
 	case '.':
 		numDots--
 		score++
-		//Remove the dot from the level
-		level[player.row] = level[player.row][0:player.col] + " " + level[player.row][player.col+1:]
+		removeDot(player.row, player.col)
+	case 'X':
+		score += 10
+		removeDot(player.row, player.col)
 	}
 }
 
@@ -273,11 +281,53 @@ func moveGhosts() {
 	for _, g := range ghosts {
 		dir := directionGhost()
 		g.row, g.col = makeMove(g.row, g.col, dir)
+		time.Sleep(800 * time.Millisecond)
 	}
+
 }
+
+func readConsole() (string, error) {
+	buffer := make([]byte, 100)
+
+	_, err := os.Stdin.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buffer[0]), nil
+
+}
+
+var gameover string = "\n" +
+	"_______  _______  __   __  _______    _______  __   __  _______  ______   \n" +
+	"|       ||   _   ||  |_|  ||       |  |       ||  | |  ||       ||    _ |\n" +
+	"|    ___||  |_|  ||       ||    ___|  |   _   ||  |_|  ||    ___||   | ||\n" +
+	"|   | __ |       ||       ||   |___   |  | |  ||       ||   |___ |   |_||\n" +
+	"|   ||  ||       ||       ||    ___|  |  |_|  ||       ||    ___||    __  |\n" +
+	"|   |_| ||   _   || ||_|| ||   |___   |       | |     | |   |___ |   |  | |\n" +
+	"|_______||__| |__||_|   |_||_______|  |_______|  |___|  |_______||___|  |_|\n"
+
+var saludo string = "\n" +
+	" _______  _______  _______         __   __  _______  __    _ \n" +
+	"|       ||   _   ||       |       |  |_|  ||   _   ||  |  | |\n" +
+	"|    _  ||  |_|  ||       | ____  |       ||  |_|  ||   |_| |\n" +
+	"|   |_| ||       ||       ||____| |       ||       ||       |\n" +
+	"|    ___||       ||      _|       |       ||       ||  _    |\n" +
+	"|   |    |   _   ||     |_        | ||_|| ||   _   || | |   | \n" +
+	"|___|    |__| |__||_______|       |_|   |_||__| |__||_|  |__| \n"
 
 func main() {
 
+	fmt.Println(saludo)
+	time.Sleep(3000 * time.Millisecond)
+	fmt.Println("Please enter the amount of lives you want (min 1, max 9)")
+	livesq, error := readConsole()
+	if error != nil {
+		fmt.Println(error)
+	} else {
+		fmt.Println("You are going to play: " + livesq + " lives")
+		lives, _ = strconv.Atoi(livesq)
+	}
 	initSettings()
 	defer cleanup()
 
@@ -324,11 +374,11 @@ func main() {
 
 		}
 
-		moveGhosts() //Moves the gosts
+		go moveGhosts() //Moves the gosts
 
 		for _, g := range ghosts {
 			if player == *g {
-				lives = 0
+				lives--
 			}
 		}
 
@@ -339,12 +389,11 @@ func main() {
 				moveCursorEmoji(player.row, player.col)
 				fmt.Print(cfg.Death)
 				moveCursorEmoji(len(level)+2, 0)
+				fmt.Println(gameover)
 			}
 			break
 		}
-
 		time.Sleep(300 * time.Millisecond)
-
 		//fmt.Println("Hello, Pacman!")
 		//break
 	}
